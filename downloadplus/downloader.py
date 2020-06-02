@@ -34,20 +34,37 @@ class Downloader():
                     'Notion URL isnt correctly formated. Make sure to start the URL with "https://www.notion.so"')
                 raise SyntaxError
 
-    def download_file(self, url):
+    def download_file(self, url, name=None, target_subfolder=None):
         print('Start downloading file: {}'.format(url))
         try:
+            filetype = url.split('/')[-1].split('.')[-1]
+            name = name + \
+                ('.' +
+                 filetype if filetype else '') if name else url.split('/')[-1]
+            target_subfolder = target_subfolder+'/' if target_subfolder else ''
+
+            # create target_subfolder if doesnt exist yet
+            if os.path.isdir(self.target_main_directory+target_subfolder) == False:
+                os.mkdir(self.target_main_directory+target_subfolder)
+
+            # download file
             os.system(
-                'curl "'+url+'" --output '+self.target_main_directory+url.split('/')[-1])
+                'curl "'+url+'" --output '+self.target_main_directory+target_subfolder+name)
         except OSError as e:
             print("Error: %s - %s." % (e.filename, e.strerror))
 
-    def download_torrent(self, magnet_link):
+    def download_torrent(self, magnet_link, target_subfolder=None):
         self.setup_torrent()
         print('Start downloading torrent: {}'.format(magnet_link))
         try:
+            target_subfolder = target_subfolder+'/' if target_subfolder else ''
+
+            # create target_subfolder if doesnt exist yet
+            if os.path.isdir(self.target_main_directory+target_subfolder) == False:
+                os.mkdir(self.target_main_directory+target_subfolder)
+
             os.system(
-                "/usr/local/bin/webtorrent --out "+self.target_main_directory+" download " + magnet_link)
+                "/usr/local/bin/webtorrent --quiet --out "+self.target_main_directory+" download " + magnet_link)
         except OSError as e:
             print("Error: %s - %s." % (e.filename, e.strerror))
 
@@ -64,16 +81,23 @@ class Downloader():
             # for every link from json: change status to "in progress", download file, change status to "downloaded" or "failed"
             for entry in self.input_json_file:
                 try:
-                    if entry['progress'] != 'in progress' and entry['progress'] != 'done':
+                    if entry['progress'] != 'in progress' and entry['progress'] != 'processed':
                         entry['progress'] = 'in progress'
                         self.save_json()
 
                         if entry['url'].startswith('magnet:'):
-                            self.download_torrent(entry['url'])
+                            self.download_torrent(
+                                magnet_link=entry['url'],
+                                target_subfolder=entry['target_subfolder']
+                            )
                         else:
-                            self.download_file(entry['url'])
+                            self.download_file(
+                                url=entry['url'],
+                                name=entry['name'],
+                                target_subfolder=entry['target_subfolder']
+                            )
 
-                        entry['progress'] = 'done'
+                        entry['progress'] = 'processed'
                         self.save_json()
                 except:
                     print(
