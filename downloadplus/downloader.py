@@ -1,19 +1,17 @@
+import json
 import os
-import urllib.request
 
 
 class Downloader():
     def __init__(self,
                  input_url=None,
-                 input_text_file=None,
-                 input_json_file=None,
+                 input_json_path=None,
                  input_notion_url=None,
-                 target_main_directory=os.path.dirname(os.path.abspath(__file__))):
+                 target_main_directory=str(os.path.dirname(os.path.abspath(__file__)))+'/'):
 
         self.target_main_directory = target_main_directory
         self.input_url = input_url
-        self.input_text_file = input_text_file
-        self.input_json_file = input_json_file
+        self.input_json_path = input_json_path
         self.input_notion_url = input_notion_url
         self.check_for_valid_input()
 
@@ -21,20 +19,28 @@ class Downloader():
         if self.input_url:
             if type(self.input_url) != str:
                 raise TypeError
-        elif self.input_text_file:
-            # TODO check if text order is correct
-            pass
-        elif self.input_json_file:
-            # TODO check if 'url' and 'targetfolder' keys are in json
-            pass
+        elif self.input_json_path:
+            with open(self.input_json_path) as json_file:
+                self.input_json_file = json.load(json_file)
+                for entry in self.input_json_file:
+                    # check if 'url' key is in json
+                    if 'url' not in entry or not entry['url']:
+                        print('"url" key doesnt exist')
+                        raise KeyError
         elif self.input_notion_url:
-            # TODO check if a valid notion url
-            pass
+            # check if a valid notion url
+            if not self.input_notion_url.startswith('https://www.notion.so') and not self.input_notion_url.startswith('https://notion.so'):
+                print(
+                    'Notion URL isnt correctly formated. Make sure to start the URL with "https://www.notion.so"')
+                raise SyntaxError
 
     def download_file(self, url):
         print('Start downloading file: {}'.format(url))
-        urllib.request.urlretrieve(
-            url, self.target_main_directory+url.split('/')[-1])
+        try:
+            os.system(
+                'curl "'+url+'" --output '+self.target_main_directory+url.split('/')[-1])
+        except OSError as e:
+            print("Error: %s - %s." % (e.filename, e.strerror))
 
     def download_torrent(self, magnet_link):
         self.setup_torrent()
@@ -54,13 +60,26 @@ class Downloader():
             else:
                 self.download_file(self.input_url)
 
-        elif self.input_text_file:
-            # TODO for every link from textfile: download file, remove link from textfile
-            pass
-
         elif self.input_json_file:
-            # TODO for every link from json: change status to "in progress", download file, change status to "downloaded" or "failed"
-            pass
+            # for every link from json: change status to "in progress", download file, change status to "downloaded" or "failed"
+            for entry in self.input_json_file:
+                try:
+                    if entry['progress'] != 'in progress' and entry['progress'] != 'done':
+                        entry['progress'] = 'in progress'
+                        self.save_json()
+
+                        if entry['url'].startswith('magnet:'):
+                            self.download_torrent(entry['url'])
+                        else:
+                            self.download_file(entry['url'])
+
+                        entry['progress'] = 'done'
+                        self.save_json()
+                except:
+                    print(
+                        'Failed downloading file. Do you have the permission to download the file and is the url correct?')
+                    entry['progress'] = 'failed'
+                    self.save_json()
 
         elif self.input_notion_url:
             # TODO for every link from notion: change status to "in progress", download file, change status to "downloaded" or "failed"
@@ -81,6 +100,10 @@ class Downloader():
                 os.system("sudo npm install webtorrent-cli -g")
             except OSError as e:
                 print("Error: %s - %s." % (e.filename, e.strerror))
+
+    def save_json(self):
+        with open(self.input_json_path, 'w') as outfile:
+            json.dump(self.input_json_file, outfile, indent=4)
 
     def which(self, program):
         """
