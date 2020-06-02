@@ -50,7 +50,7 @@ class Downloader():
                 self.input_notion_url).collection.get_rows()
 
     def download_file(self, url, name=None, target_subfolder=None):
-        print('Start downloading file: {}'.format(url))
+        print('Start downloading file: {}'.format(name if name else url))
         try:
             filetype = url.split('/')[-1].split('.')[-1]
             name = name + \
@@ -68,9 +68,10 @@ class Downloader():
         except OSError as e:
             print("Error: %s - %s." % (e.filename, e.strerror))
 
-    def download_torrent(self, magnet_link, target_subfolder=None):
+    def download_torrent(self, magnet_link, name=None, target_subfolder=None):
         self.setup_torrent()
-        print('Start downloading torrent: {}'.format(magnet_link))
+        print('Start downloading torrent: {}'.format(
+            name if name else magnet_link))
         try:
             target_subfolder = target_subfolder+'/' if target_subfolder else ''
 
@@ -103,6 +104,7 @@ class Downloader():
                         if entry['url'].startswith('magnet:'):
                             self.download_torrent(
                                 magnet_link=entry['url'],
+                                name=entry['name'],
                                 target_subfolder=entry['target_subfolder']
                             )
                         else:
