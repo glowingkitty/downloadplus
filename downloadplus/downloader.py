@@ -79,6 +79,8 @@ class Downloader():
             if os.path.isdir(self.target_main_directory+target_subfolder) == False:
                 os.mkdir(self.target_main_directory+target_subfolder)
 
+            self.target_main_directory = self.target_main_directory+target_subfolder
+
             os.system(
                 "/usr/local/bin/webtorrent --quiet --out "+self.target_main_directory+" download " + magnet_link)
         except OSError as e:
